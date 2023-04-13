@@ -25,6 +25,18 @@
   padding-bottom: 10px;
 }
 
+.expanded-image-list{
+  position: absolute;
+  flex-direction: row;
+  z-index: 20;
+  width: calc(100% - 190px);
+  height: 650px;
+  top: calc(100% - 550px);
+  margin-right: 10px;
+  left: 0;
+  padding-bottom: 10px;
+}
+
 .annotator-space {
   width: calc(100% - 190px);
   height: calc(100% - 150px);
@@ -43,6 +55,7 @@
   padding-right: 6px;
   overflow-y: hidden;
   display: flex;
+  justify-content: center;
   padding: 10px !important;
   -ms-overflow-style: none;
 }
@@ -251,6 +264,14 @@
   float: right;
   left: calc(100% - 40px);
   top: calc(100% - 40px);
+}
+
+.analytics-settings-button {
+  position: absolute;
+  z-index: 100;
+  float: right;
+  left: calc(100% - 40px);
+  top: calc(100% - 80px);
 }
 
 .annotator-settings-card {

@@ -164,7 +164,7 @@ export default class Model extends React.Component<ModelProps, ModelState> {
                 result.data
               ),
             });
-            if (this.state.registeredModelList !== {}) {
+            if (this.state.registeredModelList.isEqual({})) {
               // eslint-disable-next-line no-await-in-loop
               await this.handleGetLoadedModel();
             }
@@ -422,7 +422,7 @@ export default class Model extends React.Component<ModelProps, ModelState> {
                 result.data
               ),
             });
-            if (this.state.registeredModelList !== {}) {
+            if (this.state.registeredModelList.isequal({})) {
               // eslint-disable-next-line no-await-in-loop
               await this.handleGetLoadedModel();
             }

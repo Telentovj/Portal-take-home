@@ -2,6 +2,7 @@
 /* eslint-disable no-return-assign */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable no-prototype-builtins */
+
 import * as L from "leaflet";
 import "leaflet-draw";
 import React, { Component } from "react";
@@ -43,12 +44,13 @@ import { invert, cloneDeep, isEmpty } from "lodash";
 import { CreateGenericToast } from "@portal/utils/ui/toasts";
 import AnnotatorInstanceSingleton from "./utils/annotator.singleton";
 import AnnotationMenu from "./menu";
-import ImageBar from "./imagebar";
+import ImageBar from "./bars/imagebar/imagebar";
 import SettingsModal from "./settingsmodal";
 import FileModal from "./filemodal";
 import AnnotatorSettings from "./utils/annotatorsettings";
 import FormatTimerSeconds from "./utils/timer";
 import { RegisteredModel } from "./model";
+import AnalyticsBar from "./bars/analyticsbar/analyticsbar";
 
 type Point = [number, number];
 type MapType = L.DrawMap;
@@ -148,6 +150,8 @@ interface AnnotatorState {
     opacity: number;
   };
   currAnnotationPlaybackId: number;
+  isAnalyticsMode: boolean;
+  frameData: any;
 }
 
 /**
@@ -246,6 +250,8 @@ export default class Annotator extends Component<
         },
       },
       currAnnotationPlaybackId: 0,
+      isAnalyticsMode: false,
+      frameData: {},
     };
 
     this.toaster = new Toaster({}, {});
@@ -764,6 +770,9 @@ export default class Annotator extends Component<
         .then(response => {
           if (this.currentAsset.url === asset.url && singleAnalysis)
             this.updateAnnotations(response.data);
+          this.setState({
+            frameData: response.data,
+          })
         })
         .catch(error => {
           let message = "Failed to predict image.";
@@ -787,6 +796,9 @@ export default class Annotator extends Component<
       )
         .then(response => {
           if (this.currentAsset.url === asset.url && singleAnalysis) {
+            this.setState({
+              frameData: response.data,
+            })
             const videoElement = this.videoOverlay.getElement();
             /**
              * Recursive Callback function that
@@ -1539,11 +1551,22 @@ export default class Annotator extends Component<
     /* Prefix for Dynamic Styling of Collapsing Image List */
     const collapsedButtonTheme = this.props.useDarkTheme ? "" : "light-";
     const isCollapsed = this.state.imageListCollapsed ? "collapsed-" : "";
+    const isExpanded = this.state.isAnalyticsMode && !this.state.imageListCollapsed ?  " expanded-" : "";
 
     /* Filter currently visible assets based on current settings */
     const visibleAssets = this.state.assetList.filter(() =>
       this.isAssetVisible()
     );
+
+    const jumpToTimeStamp = (timestamp: string) => {
+      if (this.videoOverlay) {
+        const element = this.videoOverlay.getElement();
+        if (element) {
+          element.currentTime = parseInt(timestamp);
+          element.pause();
+        }
+      }
+    }
 
     return (
       <div>
@@ -1551,7 +1574,7 @@ export default class Annotator extends Component<
         <div className={"workspace"}>
           {/* Appends Styling Prefix if Image List is Collapsed */}
           <div
-            className={[isCollapsed, "image-list"].join("")}
+            className={[isCollapsed, isExpanded, "image-list"].join("")}
             id={"image-list"}
           >
             <Button
@@ -1559,9 +1582,17 @@ export default class Annotator extends Component<
               large
               icon={this.state.imageListCollapsed ? "caret-up" : "caret-down"}
               onClick={() => {
-                this.setState(prevState => ({
-                  imageListCollapsed: !prevState.imageListCollapsed,
-                }));
+                // For closing the analytics window and reopening the imagebar when you exit analytics mode
+                if(this.state.isAnalyticsMode){
+                  this.setState({
+                    imageListCollapsed: false,
+                    isAnalyticsMode: false,
+                  })
+                }else{
+                  this.setState(prevState => ({
+                    imageListCollapsed: !prevState.imageListCollapsed,
+                  }));
+                }
               }}
             />
             <div
@@ -1574,15 +1605,24 @@ export default class Annotator extends Component<
               className={[isCollapsed, "image-bar"].join("")}
               id={"image-bar"}
             >
-              <ImageBar
-                ref={ref => {
-                  this.imagebarRef = ref;
-                }}
-                /* Only visible assets should be shown */
-                assetList={visibleAssets}
-                callbacks={{ selectAssetCallback: this.selectAsset }}
-                {...this.props}
-              />
+              {this.state.isAnalyticsMode ? (
+                <AnalyticsBar
+                  frameData={this.state.frameData}
+                  assetType={this.currentAsset.type}
+                  confidence={this.state.confidence}
+                  jumpToTimeStamp={jumpToTimeStamp}
+                />
+              ) : (
+                <ImageBar
+                  ref={ref => {
+                    this.imagebarRef = ref;
+                  }}
+                  /* Only visible assets should be shown */
+                  assetList={visibleAssets}
+                  callbacks={{ selectAssetCallback: this.selectAsset }}
+                  {...this.props}
+                />
+              )}
             </Card>
           </div>
 
@@ -1613,15 +1653,27 @@ export default class Annotator extends Component<
             <Card className={"main-annotator"}>
               <div id="annotation-map" className={"style-annotator"} />
               {this.backgroundImg ? (
-                <div className="annotator-settings-button">
-                  <AnnotatorSettings
-                    annotationOptions={this.state.annotationOptions}
-                    callbacks={{
-                      setAnnotatedAssetsHidden: this.setAnnotatedAssetsHidden,
-                      setAnnotationOptions: this.setAnnotationOptions,
-                    }}
-                  />
-                </div>
+                <>
+                  <div className="annotator-settings-button">
+                    <AnnotatorSettings
+                      annotationOptions={this.state.annotationOptions}
+                      callbacks={{
+                        setAnnotatedAssetsHidden: this.setAnnotatedAssetsHidden,
+                        setAnnotationOptions: this.setAnnotationOptions,
+                      }}
+                    />
+                  </div>
+                  <div className="analytics-settings-button">
+                    <Button
+                      icon="chart"
+                      onClick={() =>
+                        this.setState({
+                          isAnalyticsMode: !this.state.isAnalyticsMode,
+                        })
+                      }
+                    />
+                  </div>
+                </>
               ) : null}
             </Card>
           </div>
